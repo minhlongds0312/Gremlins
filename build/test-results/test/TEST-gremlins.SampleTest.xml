@@ -1,7 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="gremlins.SampleTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2022-10-03T12:56:09" hostname="DESKTOP-08R9U41" time="0.016">
+<testsuite name="gremlins.SampleTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2022-10-22T12:48:47" hostname="DESKTOP-08R9U41" time="32.654">
   <properties/>
-  <testcase name="simpleTest()" classname="gremlins.SampleTest" time="0.016"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
+  <testcase name="simpleTest()" classname="gremlins.SampleTest" time="11.647"/>
+  <testcase name="fireballtest()" classname="gremlins.SampleTest" time="10.506"/>
+  <testcase name="powerUpTest()" classname="gremlins.SampleTest" time="10.5"/>
+  <system-out><![CDATA[333.3333.3333.3333.3333.3333.3333.3]]></system-out>
+  <system-err><![CDATA[java.util.ConcurrentModificationException
+	at java.base/java.util.ArrayList$Itr.checkForComodification(ArrayList.java:1043)
+	at java.base/java.util.ArrayList$Itr.next(ArrayList.java:997)
+	at gremlins.App.draw(App.java:312)
+	at processing.core.PApplet.handleDraw(PApplet.java:2426)
+	at processing.awt.PSurfaceAWT$12.callDraw(PSurfaceAWT.java:1557)
+	at processing.core.PSurfaceNone$AnimationThread.run(PSurfaceNone.java:316)
+]]></system-err>
 </testsuite>

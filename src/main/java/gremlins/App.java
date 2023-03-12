@@ -23,13 +23,9 @@ public class App extends PApplet {
     public static int currenttime;
     //public static int gremlinShot;
 
-    public PImage[] sprites = new PImage[4];
+    //public PImage[] sprites = new PImage[4];
     //string array to load level content
     public String[] level = new String[1000];
-    public ArrayList<brickwall> brickwalls = new ArrayList<brickwall>();
-    public ArrayList<stonewall> stonewalls = new ArrayList<stonewall>();
-    public ArrayList<gremlin> gremlins = new ArrayList<gremlin>();
-    public ArrayList<life> lives = new ArrayList<life>();
     public static final Random randomGenerator = new Random();
     public PFont f;
     public String configPath;
@@ -37,17 +33,31 @@ public class App extends PApplet {
     public float wizardCd;
     public Wizard wizard;
     public portal p;
-    public PImage stonewall;
+    
     public char direction;
-    //array of fireballs
+    public ArrayList<brickwall> brickwalls = new ArrayList<brickwall>();
+    public ArrayList<stonewall> stonewalls = new ArrayList<stonewall>();
+    public ArrayList<gremlin> gremlins = new ArrayList<gremlin>();
+    public ArrayList<life> lives = new ArrayList<life>();
     public ArrayList<Fireball> fireballs = new ArrayList<Fireball>();
     public ArrayList<slime> slimes = new ArrayList<slime>();
+    public ArrayList<powerUp> pu = new ArrayList<powerUp>();
+    public ArrayList<portal> tp = new ArrayList<portal>();
+    public boolean teleportAvailable = true;
+    public int teleportTimer = 0;
+    public boolean endgame = false;
+    public int powerUpTimer = 0;
+    public boolean powerUpExist = false;
+    public boolean powerUpActive = false;
+    public life powUpIcon;
+    public int hit = 0;
+    public ArrayList<Fireball> special = new ArrayList<Fireball>();
     public App() {
         this.configPath = "config.json";
         this.wizard = new Wizard();
         this.wizard.size = SPRITESIZE;
         this.direction = 'l';
-        this.lvlcode = 1;
+        this.lvlcode = 0;
 }
     /**
      * Initialise the setting of the window size.
@@ -59,19 +69,18 @@ public class App extends PApplet {
     /**
      * Load all resources such as images. Initialise the elements such as the player, enemies and map elements.
     */
-    public void setup() {
+    public  void setup() {
         frameRate(FPS);
         // Load images during setup
-        this.stonewall = loadImage(this.getClass().getResource("stonewall.png").getPath().replace("%20", ""));
         this.wizard.setSprite(loadImage("src/main/resources/gremlins/wizard0.png"));
         JSONObject conf = loadJSONObject(new File(this.configPath));
         for(int i = 0; i < conf.getInt("lives"); i++){
             life l = new life(400+i*20, 680, loadImage("src/main/resources/gremlins/wizard0.png"));
             lives.add(l);
         }
+        this.powUpIcon = new life(350, 680, loadImage("src/main/resources/gremlins/powerIcon.png"));  
         gremlin.cd = conf.getJSONArray("levels").getJSONObject(lvlcode).getInt("enemy_cooldown")*1000;
         this.wizardCd = conf.getJSONArray("levels").getJSONObject(lvlcode).getFloat("wizard_cooldown")*1000;
-        print(this.wizardCd);
         level = loadStrings(conf.getJSONArray("levels").getJSONObject(lvlcode).getString("layout"));
         for(int i = 0; i < level.length; i++){
             for(int j = 0; j < level[i].length(); j++){
@@ -111,10 +120,28 @@ public class App extends PApplet {
                     this.p.y = i*SPRITESIZE;
                     this.p.setSprite(loadImage("src/main/resources/gremlins/portal.png"));
                 }
+                //read teleport placement
+                if(level[i].charAt(j) == 'T'){
+                    portal t = new portal();
+                    t.setSprite(loadImage("src/main/resources/gremlins/teleportal.png"));
+                    t.x = j*SPRITESIZE;
+                    t.y = i*SPRITESIZE;
+                    this.tp.add(t);
+                }
+                //read powerup placement. This powerup will give the wizard a special attack by pressing E. When shot, 
+                //it will create an energy blast that destroys all brickwalls on its path, as well as eliminating any gremlins caught within.
+                if(level[i].charAt(j) == 'P'){
+                    powerUp p = new powerUp();
+                    p.x = j*SPRITESIZE;
+                    p.y = i*SPRITESIZE;
+                    p.setSprite(loadImage("src/main/resources/gremlins/powerUp.png"));
+                    this.pu.add(p);
+                }
             }
         }
         PFont f = createFont("src/main/resources/gremlins/NemoyBold.otf", 20);
         textFont(f, 20);
+        print(this.wizardCd);
     }
 
     /**
@@ -169,8 +196,40 @@ public class App extends PApplet {
                 }
             }
         }
-
+        if(keyPressed && this.endgame){
+            this.endgame = false;
+            this.lvlcode=0;
+            reset();
+            this.setup();
+            loop();
         }
+        //press E to shoot special fireball
+        if(this.keyCode == 69 && this.powerUpActive){
+            this.powerUpActive = false;
+            Fireball fb = new Fireball(this.wizard.getX(), this.wizard.getY());
+            fb.setSprite(loadImage("src/main/resources/gremlins/powerIcon.png"));
+            this.special.add(fb);
+            if(this.direction == 'u'){
+                fb.dir = 'u';
+            }
+            if(this.direction == 'd'){
+                fb.dir = 'd';
+            }
+            if(this.direction == 'l'){
+                fb.dir= 'l';
+            }
+            if(this.direction == 'r'){
+                fb.dir = 'r';
+            }
+            for(Fireball f : this.special){
+                if(f == null){
+                    f = fb;
+                }
+            }
+            this.powerUpTimer = App.currenttime;
+        }
+
+    }
     
     /**
      * Receive key released signal from the keyboard.
@@ -214,7 +273,7 @@ public class App extends PApplet {
 	 */
     public void draw() {
         App.currenttime = millis();
-        //set beige background
+        //set background
         background(255, 255, 204);
         //display the lives
         for(life i : this.lives){
@@ -222,6 +281,9 @@ public class App extends PApplet {
         }
         //draw the portal
         this.p.draw(this);
+        for(portal p : this.tp){
+            p.draw(this);
+        }
         //draw the wizard
         this.wizard.tick();
         this.wizard.draw(this);
@@ -250,6 +312,41 @@ public class App extends PApplet {
         for(stonewall sw : this.stonewalls){
             sw.draw(this);
         }
+        //draw the powerups
+        if(App.currenttime - this.powerUpTimer > 10000 && this.powerUpActive == false){
+            for(powerUp p : this.pu){
+                p.setSprite(loadImage("src/main/resources/gremlins/powerUp.png"));
+                p.draw(this);
+            }   
+            this.powerUpExist = true;
+        }
+        //consumes the powerup if the wizard is on it
+        for (int i = 0; i < this.pu.size(); i++){
+            if(this.wizard.x == this.pu.get(i).x && this.wizard.y == this.pu.get(i).y && this.powerUpExist){
+                //set sprite to null
+                this.pu.get(i).setSprite(null);
+                this.powerUpExist = false;
+                this.powerUpActive = true;
+            }
+        }
+        for(Fireball f : this.special){
+            if (f.dir == 'l'){
+                f.Left();
+            }
+            else if (f.dir == 'r'){
+                f.Right();
+            }
+            else if (f.dir == 'u'){
+                f.Up();
+            }
+            else if (f.dir == 'd'){
+                f.Down();
+            }
+            f.draw(this);
+        }
+        if(this.powerUpActive){
+            this.powUpIcon.draw(this);
+        }
         //shoot the fireballs
         for(Fireball f : this.fireballs){
             if (f.dir == 'l'){
@@ -266,6 +363,21 @@ public class App extends PApplet {
             }
             f.draw(this);
         }
+        //special fireball clears everything on its path
+        for(Fireball f : this.special){
+            for(int g = 0; g < this.gremlins.size(); g++){
+                if((f.getX() <= this.gremlins.get(g).getX()+10 & f.getX() >= this.gremlins.get(g).getX()-10) && 
+                (f.getY() <=this.gremlins.get(g).getY()+10 & f.getY() >=this.gremlins.get(g).getY()-10)){{
+                    this.gremlins.remove(g);
+                }
+            }
+            for(int b = 0; b < this.brickwalls.size(); b++){
+                if(f.x == this.brickwalls.get(b).x && f.y == this.brickwalls.get(b).y){
+                    this.brickwalls.get(b).destroyed = true;
+                }
+            }
+        }
+    }
         
         //when fireball hits wall, fireball disappears and wall is destroyed
         for(int i = 0; i < this.fireballs.size(); i++){
@@ -275,7 +387,6 @@ public class App extends PApplet {
                 (this.fireballs.get(i).getY() <= this.brickwalls.get(b).getY()+10 & this.fireballs.get(i).getY() >= this.brickwalls.get(b).getY()-10)){
                     this.brickwalls.get(b).destroyed = true;
                     this.fireballs.remove(i);
-                    //this.brickwalls.remove(b);
                     if(i == this.fireballs.size()){
                         break;
                     }
@@ -342,9 +453,22 @@ public class App extends PApplet {
                 g.completelyStop();
                 Random random = new Random();
                 int index = random.nextInt(g.directions.size());
+                if(g.directions.get(index) == 'l' && g.direction == 'r'){
+                    index = random.nextInt(g.directions.size());
+                }
+                if(g.directions.get(index) == 'r' && g.direction == 'l'){
+                    index = random.nextInt(g.directions.size());
+                }
+                if(g.directions.get(index) == 'u' && g.direction == 'd'){
+                    index = random.nextInt(g.directions.size());
+                }
+                if(g.directions.get(index) == 'd' && g.direction == 'u'){
+                    index = random.nextInt(g.directions.size());
+                }
                 g.direction = g.directions.get(index);
-            }
+            
         }
+    }
         //check if fireball hits the gremlins
         for(int i = 0; i < this.fireballs.size(); i++){
             for(int b = 0; b < this.gremlins.size(); b++){
@@ -356,22 +480,26 @@ public class App extends PApplet {
                     int x = 20*(random.nextInt(10)+10);
                     int y = 20*(random.nextInt(10)+10);
                     //exclude x and y from the walls
+                    for(stonewall sw: this.stonewalls){
+                        if((x < sw.getX()+20 & x > sw.getX()-20) &&
+                        (y < sw.getY()+20 & y > sw.getY()-20)){
+                            x = 20*(random.nextInt(10)+10);
+                            y = 20*(random.nextInt(10)+10);
+                        }
+                        else{
+                            this.gremlins.get(b).setX(x);
+                            this.gremlins.get(b).setY(y);
+                        }
+                    }
                     for(brickwall bw : this.brickwalls){
-                        for(stonewall sw: this.stonewalls){
-                            if((x < bw.getX()+20 & x > bw.getX()-20) &&
-                            (y < bw.getY()+20 & y > bw.getY()-20)){
-                                x = 20*(random.nextInt(10)+10);
-                                y = 20*(random.nextInt(10)+10);
-                            }
-                            else if((x < sw.getX()+20 & x > sw.getX()-20) &&
-                            (y < sw.getY()+20 & y > sw.getY()-20)){
-                                x = 20*(random.nextInt(10)+10);
-                                y = 20*(random.nextInt(10)+10);
-                            }
-                            else{
-                                this.gremlins.get(b).setX(x);
-                                this.gremlins.get(b).setY(y);
-                            }
+                        if((x < bw.getX()+20 & x > bw.getX()-20) &&
+                        (y < bw.getY()+20 & y > bw.getY()-20)){
+                            x = 20*(random.nextInt(10)+10);
+                            y = 20*(random.nextInt(10)+10);
+                        }
+                        else{
+                            this.gremlins.get(b).setX(x);
+                            this.gremlins.get(b).setY(y);
                         }
                     }
                     if(i == this.fireballs.size()){
@@ -379,6 +507,24 @@ public class App extends PApplet {
                     }
                     if(b == this.gremlins.size()){
                         break;
+                    }
+                }
+            }
+        }
+        //vaporize the slimes if they touch a fireball
+        if(this.fireballs.size() != 0 && this.slimes.size() != 0){
+            for(int i = 0; i < this.slimes.size(); i++){
+                for(int b = 0; b < this.fireballs.size(); b++){
+                    if((this.slimes.get(i).getX() <= this.fireballs.get(b).getX()+10 & this.slimes.get(i).getX() >= this.fireballs.get(b).getX()-10) && 
+                    (this.slimes.get(i).getY() <= this.fireballs.get(b).getY()+10 & this.slimes.get(i).getY() >= this.fireballs.get(b).getY()-10)){
+                        this.slimes.remove(i);
+                        this.fireballs.remove(b);
+                        if(i == this.slimes.size()){
+                            break;
+                        }
+                        if(b == this.fireballs.size()){
+                            break;
+                        }
                     }
                 }
             }
@@ -445,23 +591,71 @@ public class App extends PApplet {
         for(int i = 0; i < this.slimes.size(); i++){
             if((this.slimes.get(i).getX() <= this.wizard.getX()+10 & this.slimes.get(i).getX() >= this.wizard.getX()-10) && 
             (this.slimes.get(i).getY() <= this.wizard.getY()+10 & this.slimes.get(i).getY() >= this.wizard.getY()-10)){
-                if(this.lives.size() > 0){
-                    this.lives.remove(this.lives.size()-1);
-                    this.slimes.remove(i);
-                    if(i == this.slimes.size()){
-                        break;
+                this.hit +=1;
+                reset();
+                setup();
+                if(this.hit < this.lives.size()){
+                    for(int b = 0; b < this.hit; b++){
+                        this.lives.remove(b);
                     }
                 }
-            else{
-                //clear the canvas
-                this.clear();
-                //set beige background again
-                this.background(255, 255, 204);
-                //set game over text
-                this.textSize(50);
-                this.text("Game Over", 300, 300);
-                noLoop();
+                else{
+                    //clear the canvas
+                    this.clear();
+                    //set beige background again
+                    this.background(255, 255, 204);
+                    //set game over text
+                    this.textSize(50);
+                    this.text("Game Over", 300, 300);
+                    noLoop();
+                    this.endgame = true;
+                }
             }
+        }
+        //when the wizard steps on a teleporter, teleports to the coords of the other teleporter
+        if((this.wizard.getX() < this.tp.get(0).getX()+20 & this.wizard.getX() > this.tp.get(0).getX()-20) &&
+                (this.wizard.getY() < this.tp.get(0).getY()+20 & this.wizard.getY() > this.tp.get(0).getY()-20)&& this.teleportAvailable){
+            this.teleportAvailable = false;
+            this.wizard.setX(this.tp.get(1).getX());
+            this.wizard.setY(this.tp.get(1).getY());
+            this.teleportTimer = millis();
+                }
+        if((this.wizard.getX() < this.tp.get(1).getX()+20 & this.wizard.getX() > this.tp.get(1).getX()-20) &&
+        (this.wizard.getY() < this.tp.get(1).getY()+20 & this.wizard.getY() > this.tp.get(1).getY()-20) &&this.teleportAvailable){
+            this.teleportAvailable = false;
+            this.wizard.setX(this.tp.get(0).getX());
+            this.wizard.setY(this.tp.get(0).getY());
+            this.teleportTimer = millis();
+        }
+        if(this.teleportAvailable == false){
+            if(millis() - this.teleportTimer >= 5000){
+                this.teleportAvailable = true;
+            }
+        }
+
+        //check if wizard hits the gremlin
+        for(int i = 0; i < this.gremlins.size(); i++){
+            if((this.gremlins.get(i).getX() <= this.wizard.getX()+10 & this.gremlins.get(i).getX() >= this.wizard.getX()-10) && 
+            (this.gremlins.get(i).getY() <= this.wizard.getY()+10 & this.gremlins.get(i).getY() >= this.wizard.getY()-10)){
+                this.hit +=1;
+                reset();
+                setup();
+                if(this.hit < this.lives.size()){
+                    for(int b = 0; b < this.hit; b++){
+                        this.lives.remove(b);
+                    }
+                }
+                else{
+                    //clear the canvas
+                    this.clear();
+                    //set beige background again
+                    this.background(255, 255, 204);
+                    //set game over text
+                    this.textSize(50);
+                    this.text("Game Over", 300, 300);
+                    noLoop();
+                    this.endgame = true;
+                }
             }
         }
         text("Level "+ Integer.toString(lvlcode+1), 70, 700);
@@ -471,20 +665,37 @@ public class App extends PApplet {
         (this.wizard.getY() < this.p.y+20 & this.wizard.getY() > this.p.y-20)){
             if(lvlcode < 1){
                 //clear canvas
-                this.gremlins.clear();
-                this.brickwalls.clear();
-                this.stonewalls.clear();
+                reset();
                 lvlcode++;
                 setup();
             }
             else{
                 //clear canvas
-                this.brickwalls.clear();
-                this.stonewalls.clear();
-                this.gremlins.clear();
-                text("You won!", 70, 700);
+                this.clear();
+                //clear all objects
+                reset();
+                //set beige background again
+                this.background(255, 255, 204);
+                //set game over text
+                this.textSize(50);
+                this.text("You Win!", 300, 300);
+                noLoop();
+                this.endgame = true;
             }
         }
+    }
+    public void reset(){
+        //clear all objects
+        this.brickwalls.clear();
+        this.stonewalls.clear();
+        this.gremlins.clear();
+        this.fireballs.clear();
+        this.pu.clear();
+        this.slimes.clear();
+        this.lives.clear();
+        this.powerUpActive = false;
+        this.powerUpExist = false;
+        this.powerUpTimer = App.currenttime;
     }
     
     public static void main(String[] args) {
@@ -492,4 +703,3 @@ public class App extends PApplet {
         PApplet.main("gremlins.App");
     }
 }
- 

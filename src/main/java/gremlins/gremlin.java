@@ -13,6 +13,9 @@ public class gremlin extends Char {
     public static int cd;
 
     //construct
+    /**
+     * constructs a gremlin
+     */
     public gremlin() {
         super(0, 0);
         this.speed = 1;
@@ -25,18 +28,37 @@ public class gremlin extends Char {
         this.direction = 'l';
     }
     //update sprite every frame
+    /**
+     * set the x coordinate
+     * @param x x coordinate
+     */
     public void setX(int x){
         this.x = x;
     }
+    /**
+     * set the y coordinate
+     * @param y y coordinate
+     */
     public void setY(int y){
         this.y = y;
     }
+    /**
+     * get the x coordinate
+     * @return x coordinate
+     */
     public int getX(){
         return this.x;
     }
+    /**
+     * get the y coordinate
+     * @return y coordinate
+     */
     public int getY(){
         return this.y;
     }
+    /**
+     * stops the gremlin when it hits the wall
+     */
     public void completelyStop(){
         //return to the previous location
         this.lastDirection = this.direction;
@@ -52,6 +74,9 @@ public class gremlin extends Char {
         else if(this.lastDirection == 'r'){
             this.x -= this.speed;
         }}
+    /**
+     * update the gremlin's position based on its direction
+     */
     public void tick() {
         if (this.direction == 'u') {
             this.y -= speed;
